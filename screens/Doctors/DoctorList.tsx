@@ -1,6 +1,7 @@
 import React from "react";
 import {Dimensions, Modal, RefreshControl, StyleSheet, TextInput, TouchableOpacity, View, Alert} from "react-native";
 import {
+    Root,
     Body,
     Container,
     Content,
@@ -124,36 +125,11 @@ class DoctorList extends React.Component{
 
         if(this.state.ratingSet == 0)
         {
-            Alert.alert(
-                "Alert Title",
-                "My Alert Msg",
-                [
-                    {
-                        text: "Cancel",
-                        onPress: () => console.log("Cancel Pressed"),
-                        style: "cancel"
-                    },
-                    { text: "OK", onPress: () => console.log("OK Pressed") }
-                ]
-            );
-            // Toast.show({
-            //     type: 'success',
-            //     text1: 'Hello',
-            //     text2: 'This is some something 👋',
-            //     visibilityTime: 4000,
-            //     autoHide: true,
-            //     topOffset: 30,
-            //     bottomOffset: 40,
-            //     onShow: () => {},
-            //     onHide: () => {},
-            //     onPress: () => {},
-            //     props: {},
-            //     // zIndex: 3000, // works on ios
-            //     // elevation: 3000, // works on android
-            //     zIndex:-2000,
-            // });
-            console.log('tst');
-
+            Toast.show({
+                text: 'Дайте оценку врачу',
+                type: 'danger',
+                duration: 3000,
+            });
             return
         }
         try {
@@ -269,101 +245,108 @@ class DoctorList extends React.Component{
                         ))}
                     </List>
                     )}
+
                     <Modal
                         animationType={"slide"}
                         visible={this.state.modal}
                     >
-                        <View style={{
-                            flex: 1,
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                        }}>
-                            <View style={{ paddingTop: 40 }}>
-                                <List>
-                                    {this.state.listGrade.map((grade, i) => (
-                                        <ListItem key={i} style={{ flexDirection: 'column', alignItems: "flex-start" }}>
-                                            <View>
-                                                <Text>{grade.note}</Text>
-                                            </View>
-                                            <View>
-                                                {grade.reason != null?
-                                                    <Text style={{
-                                                        color: 'red',
-                                                        textAlign: "left"
-                                                    }}>Отклонен модератором. Причина:{"\n"}{grade.reason}</Text>
-                                                    : null }
-                                            </View>
-                                            <View style={{ width: '100%' }}>
-                                                <Text style={{ width: '100%', textAlign: "right", fontSize: 10 }}>{grade.grade_date}</Text>
-                                            </View>
-                                        </ListItem>
-                                    ))}
-                                </List>
-                            </View>
-                            <View style={{ borderTopWidth: 1,}}>
-                                <List>
-                                    <ListItem noBorder>
-                                        <TextInput
-                                            style={styles.textArea}
-                                            underlineColorAndroid="transparent"
-                                            placeholder="Введите отзыв"
-                                            placeholderTextColor="grey"
-                                            numberOfLines={2}
-                                            multiline={true}
-                                            onChangeText={text => this.setState({ otziv: text})}
-                                        />
-                                    </ListItem>
-                                    <ListItem noBorder style={{ marginTop: -20 }}>
-                                        <TextInput
-                                            style={styles.contactInput}
-                                            underlineColorAndroid="transparent"
-                                            placeholder="Как с вами связаться? (Телефон или электронную почту)"
-                                            placeholderTextColor="grey"
-                                            onChangeText={text => this.setState({callPhone: text})}
-                                        />
-                                    </ListItem>
-                                    <ListItem noBorder style={{ marginTop: -20, flexDirection: 'column', }}>
-                                        <Text>Оцените врача по пятибалльной шкале</Text>
-                                        <StarRating
-                                            maxStars={5}
-                                            emptyStar={'ios-star-outline'}
-                                            fullStar={'ios-star'}
-                                            halfStar={'ios-star-half'}
-                                            iconSet={'Ionicons'}
-                                            rating={this.state.ratingSet}
-                                            starSize={30}
-                                            selectedStar={(rating) => this.setState({ratingSet: rating})}
-                                            fullStarColor={'red'}
-                                            emptyStarColor={'red'}
-                                            interitemSpacing={20}
-                                        />
-                                    </ListItem>
-                                </List>
-                                <List>
-                                    <ListItem>
-                                        <Left>
-                                            <Button
-                                                success={true}
-                                                style={{ width: '90%', borderRadius: 10 }}
-                                                onPress={() => {
-                                                    this.setState({modal: false});
-                                                }}
-                                            >
-                                                <Text style={{ width: '100%', textAlign: "center"}}>Закрыть</Text>
-                                            </Button>
-                                        </Left>
-                                        <Body>
-                                            <Button
-                                                style={{ width: '90%', borderRadius: 10 }}
-                                                onPress={() => { this._setRetview() }}
-                                            >
-                                                <Text style={{ width: '100%', textAlign: "center"}}>Отправить</Text>
-                                            </Button>
-                                        </Body>
-                                    </ListItem>
-                                </List>
-                            </View>
-                        </View>
+                        <Root>
+                            <Container>
+                                <Content>
+                                    <View style={{
+                                        flex: 1,
+                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
+                                    }}>
+                                        <View>
+                                            <List>
+                                                {this.state.listGrade.map((grade, i) => (
+                                                    <ListItem key={i} style={{ flexDirection: 'column', alignItems: "flex-start" }}>
+                                                        <View>
+                                                            <Text>{grade.note}</Text>
+                                                        </View>
+                                                        <View>
+                                                            {grade.reason != null?
+                                                                <Text style={{
+                                                                    color: 'red',
+                                                                    textAlign: "left"
+                                                                }}>Отклонен модератором. Причина:{"\n"}{grade.reason}</Text>
+                                                                : null }
+                                                        </View>
+                                                        <View style={{ width: '100%' }}>
+                                                            <Text style={{ width: '100%', textAlign: "right", fontSize: 10 }}>{grade.grade_date}</Text>
+                                                        </View>
+                                                    </ListItem>
+                                                ))}
+                                            </List>
+                                        </View>
+                                        <View style={{ borderTopWidth: 1,}}>
+                                            <List>
+                                                <ListItem noBorder>
+                                                    <TextInput
+                                                        style={styles.textArea}
+                                                        underlineColorAndroid="transparent"
+                                                        placeholder="Введите отзыв"
+                                                        placeholderTextColor="grey"
+                                                        numberOfLines={2}
+                                                        multiline={true}
+                                                        onChangeText={text => this.setState({ otziv: text})}
+                                                    />
+                                                </ListItem>
+                                                <ListItem noBorder style={{ marginTop: -20 }}>
+                                                    <TextInput
+                                                        style={styles.contactInput}
+                                                        underlineColorAndroid="transparent"
+                                                        placeholder="Как с вами связаться? (Телефон или электронную почту)"
+                                                        placeholderTextColor="grey"
+                                                        onChangeText={text => this.setState({callPhone: text})}
+                                                    />
+                                                </ListItem>
+                                                <ListItem noBorder style={{ marginTop: -20, flexDirection: 'column', }}>
+                                                    <Text>Оцените врача по пятибалльной шкале</Text>
+                                                    <StarRating
+                                                        maxStars={5}
+                                                        emptyStar={'ios-star-outline'}
+                                                        fullStar={'ios-star'}
+                                                        halfStar={'ios-star-half'}
+                                                        iconSet={'Ionicons'}
+                                                        rating={this.state.ratingSet}
+                                                        starSize={30}
+                                                        selectedStar={(rating) => this.setState({ratingSet: rating})}
+                                                        fullStarColor={'red'}
+                                                        emptyStarColor={'red'}
+                                                        interitemSpacing={20}
+                                                    />
+                                                </ListItem>
+                                            </List>
+                                            <List>
+                                                <ListItem>
+                                                    <Left>
+                                                        <Button
+                                                            success={true}
+                                                            style={{ width: '90%', borderRadius: 10 }}
+                                                            onPress={() => {
+                                                                this.setState({modal: false});
+                                                            }}
+                                                        >
+                                                            <Text style={{ width: '100%', textAlign: "center"}}>Закрыть</Text>
+                                                        </Button>
+                                                    </Left>
+                                                    <Body>
+                                                        <Button
+                                                            style={{ width: '90%', borderRadius: 10 }}
+                                                            onPress={() => { this._setRetview() }}
+                                                        >
+                                                            <Text style={{ width: '100%', textAlign: "center"}}>Отправить</Text>
+                                                        </Button>
+                                                    </Body>
+                                                </ListItem>
+                                            </List>
+                                        </View>
+                                    </View>
+                                </Content>
+                            </Container>
+                        </Root>
                     </Modal>
                 </Content>
             </Container>
