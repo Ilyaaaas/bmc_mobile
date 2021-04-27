@@ -33,6 +33,7 @@ class DoctorList extends React.Component{
             token: '',
             refreshing: false,
             list: [],
+            filteredList: [],
             isReview: null,
             docInfo: null,
             isDocReviewSelected: null,
@@ -43,6 +44,7 @@ class DoctorList extends React.Component{
             otziv: '',
             callPhone: '',
             ratingSet: 0,
+            dataJson: '',
         }
     }
 
@@ -84,7 +86,11 @@ class DoctorList extends React.Component{
     _getDoctorList = async () => {
         await this._getUrl('get_doctors').then(value => {
             if(value !== null){
+                value.sort((a,b) => {
+                    return a.fio > b.fio;
+                });
                 this.setState({ list: value});
+                this.setState({ filteredList: value});
             }
         })
     }
@@ -96,6 +102,13 @@ class DoctorList extends React.Component{
     }
 
     _refreshPage = async () => {
+        this.setState({refreshing: true});
+        await this._getToken();
+        await this._getDoctorList();
+        this.setState({refreshing: false});
+    }
+
+    _refreshPageWithSearch = async (text) => {
         this.setState({refreshing: true});
         await this._getToken();
         await this._getDoctorList();
@@ -118,6 +131,36 @@ class DoctorList extends React.Component{
         await this._getUrl('get_grade/'+docid).then(value => {
             this.setState({ listGrade: value, activeDoc: docid, modal: true });
         })
+    }
+
+    searchRequest = async (searchText) =>
+    {
+        console.log('test');
+        console.log(searchText);
+        let data = this.state.filteredList;
+        data = data.filter(function(item){
+            return item.fio.includes(searchText.text);
+        }).map(function({avg_grade, category_name, doc_id, fio, fname, lname, rnum, science_degree, sname, spr_value}){
+            return {avg_grade, category_name, doc_id, fio, fname, lname, rnum, science_degree, sname, spr_value};
+        });
+        this.setState({ list: data});
+    }
+
+    getRenderArray()
+    {
+        console.log('getRenderArray');
+        let dataForRender = this.state.listfilteredList;
+        console.log('filteredList');
+        console.log(this.state.filteredList);
+        console.log('list');
+        console.log(this.state.list);
+        if(this.state.filteredList == undefined)
+        {
+            console.log('undefined');
+            dataForRender = this.state.list;
+        }
+        dataForRender = this.state.listfilteredList;
+        this.setState({ filteredList: dataForRender});
     }
 
     _setRetview = async () => {
@@ -166,6 +209,9 @@ class DoctorList extends React.Component{
     }
 
     render() {
+        // let dataForRender = this.getRenderArray();
+        // console.log('dataForRender')
+        // console.log(dataForRender)
         return (
             <Container>
                 <Header style={styles.headerTop}>
@@ -189,6 +235,13 @@ class DoctorList extends React.Component{
                         />
                     }
                 >
+                    <View>
+                        <TextInput
+                            placeholder="Поиск"
+                            onChangeText={text => this.searchRequest({text})}
+                            keyboardType="numeric"
+                        />
+                    </View>
                     {this.state.refreshing ? (
                         <Text style={{ textAlign: "center", fontSize: 14, flex: 1, marginTop: 20, width: '100%' }}>Подождите идет загрузка данных</Text>
                     ) : (
@@ -250,15 +303,15 @@ class DoctorList extends React.Component{
                         animationType={"slide"}
                         visible={this.state.modal}
                     >
-                        <Root>
-                            <Container>
-                                <Content>
+                        {/*<Root>*/}
+                        {/*    <Container>*/}
+                        {/*        <Content>*/}
                                     <View style={{
                                         flex: 1,
                                         flexDirection: 'column',
                                         justifyContent: 'space-between',
                                     }}>
-                                        <View>
+                                        <View style={{paddingTop: 40}}>
                                             <List>
                                                 {this.state.listGrade.map((grade, i) => (
                                                     <ListItem key={i} style={{ flexDirection: 'column', alignItems: "flex-start" }}>
@@ -344,9 +397,9 @@ class DoctorList extends React.Component{
                                             </List>
                                         </View>
                                     </View>
-                                </Content>
-                            </Container>
-                        </Root>
+                        {/*        </Content>*/}
+                        {/*    </Container>*/}
+                        {/*</Root>*/}
                     </Modal>
                 </Content>
             </Container>
