@@ -10,10 +10,22 @@ import {
     ListItem,
     Text,
     List,
-    Content
+    Content,
+    Root
 } from 'native-base';
 import {AntDesign, FontAwesome, FontAwesome5, Ionicons} from '@expo/vector-icons';
-import {Alert, AsyncStorage, StyleSheet, RefreshControl, Modal, View, TouchableOpacity, SafeAreaView} from "react-native";
+import StarRating from "react-native-star-rating";
+import {
+    Alert,
+    AsyncStorage,
+    StyleSheet,
+    RefreshControl,
+    Modal,
+    View,
+    TouchableOpacity,
+    SafeAreaView,
+    TextInput, ScrollView
+} from "react-native";
 import {Button} from "react-native-paper";
 import axios from 'axios';
 import * as _ from 'lodash';
@@ -22,7 +34,6 @@ import { API, getToken } from '../constants';
 import { isNotUndefined } from '../helpers';
 import moment from "moment";
 
-
 class PriemFormList extends React.Component {
     constructor(props) {
         super(props);
@@ -30,10 +41,19 @@ class PriemFormList extends React.Component {
             token: '',
             user: {},
             list: [],
+            listGrade: [],
             sortBy: 'desc',
             refreshing: false,
             modalVisible: false,
+            modalReportVisible: false,
             modalValue: [],
+            activeDoc: null,
+            otziv: '',
+            callPhone: '',
+            ratingSet: 0,
+            dataJson: '',
+            shed_id: '',
+            doc_id: '',
         };
     }
 
@@ -80,7 +100,8 @@ class PriemFormList extends React.Component {
                     });
                     return;
                 }
-
+                console.log('data.result');
+                console.log(data.result);
                 this.setState({ list: data.result });
             }
         } catch (error) {
@@ -172,8 +193,108 @@ class PriemFormList extends React.Component {
         }).catch(err => console.log('Priem calcelling error: ', err))
     }
 
-    
+    _setRetviewForVisit = async () => {
+        let API_URL = `${API}backend/set_grade_for_visit`;
+        console.log('this.state.listGrade');
+        console.log(this.state.listGrade);
 
+        if(this.state.ratingSet == 0)
+        {
+            Toast.show({
+                text: 'Дайте оценку посещению',
+                type: 'danger',
+                duration: 3000,
+            });
+            return
+        }
+        try {
+            console.log(API_URL);
+            console.log('API_URL');
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'token': this.state.token,
+                },
+                body: `id_doctor=${this.state.doc_id}&grade=${this.state.ratingSet}&note=${this.state.otziv}&feedback=${this.state.callPhone}&shed_id=${this.state.shed_id}`,
+            });
+            console.log(this.state);
+            console.log(this.state.doc_id);
+            console.log(this.state.ratingSet);
+            console.log(this.state.otziv);
+            console.log(this.state.callPhone);
+            console.log('POST');
+
+            const responseJson = await response.json();
+            if (responseJson !== null) {
+                let itype = 'success';
+
+                if(responseJson.success == false){
+                    itype = 'danger';
+                }
+                // alert(responseJson.message);
+                Toast.show({
+                    text: responseJson.message,
+                    type: itype,
+                    duration: 3000
+                });
+                this.setState({activeDoc: null, modal: false, otziv: '', callPhone: '', ratingSet: 0 });
+                this._getDoctorList();
+            }
+        } catch (error) {
+            console.log('Error when call API: ' + error.message);
+        }
+    }
+
+    _getDoctorList = async () => {
+        await this._getUrl('get_doctors').then(value => {
+            if(value !== null){
+                value.sort((a,b) => {
+                    return a.fio > b.fio;
+                });
+                this.setState({ list: value});
+                this.setState({ filteredList: value});
+            }
+        })
+    }
+
+    _getUrl = async (url) => {
+        const API_URL = `${API}backend/${url}`
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'token': this.state.token,
+                },
+            });
+
+            const responseJson = await response.json();
+            if (responseJson !== null) {
+                if(responseJson.success == false){
+                    Toast.show({
+                        text: responseJson.message,
+                        type: 'danger',
+                        duration: 3000
+                    });
+                    return null;
+                }
+                return responseJson.result;
+            }
+        } catch (error) {
+            console.log('Error when call API: ' + error.message);
+        }
+        return null;
+    }
+
+    onInfoButtonClicked = async (docid, shed_id) => {
+        await this._getUrl('get_grade_for_visit/'+shed_id).then(value => {
+            this.setState({ listGrade: value, activeDoc: docid, modal: true });
+        })
+    }
 
     render() {
         return (
@@ -240,14 +361,15 @@ class PriemFormList extends React.Component {
                                 Сортировать по дате
                             </Button>
                         </ListItem>
-
+                        {/*тут начинается список врачей*/}
                         {this.state.list.map((value, i) => (
                             <ListItem
                                 avatar
                                 key={i}
                                 style={{ paddingBottom: 5, paddingTop: 5 }}
                                 onPress={() => {
-                                    this.setState({ modalValue: value, modalVisible: true});
+                                    this.setState({ modalValue: value, modalVisible: true, shed_id: value.shed_id, doc_id: value.doc_id});
+                                    this.onInfoButtonClicked(value.doc_id, value.shed_id);
                                 }}
                             >
                                 <Left>
@@ -285,6 +407,7 @@ class PriemFormList extends React.Component {
                         <Text style={{ marginVertical: 10 }}>Врач: {this.state.modalValue.fio}</Text>
                         <Text style={{ marginVertical: 10 }}>Кабинет: {this.state.modalValue.cab_num}</Text>
                         <Text style={{ marginVertical: 10 }}>Дата и время приема: {this.state.modalValue.date_visit}</Text>
+                        <Text style={{ marginVertical: 10 }}>shed_id: {this.state.modalValue.shed_id}</Text>
                         {
                             this.state.modalValue.is_online == 1 ? (
                             <TouchableOpacity
@@ -292,7 +415,7 @@ class PriemFormList extends React.Component {
                             onPress={() => {
                                 let visitDate = moment(this.state.modalValue.date_visit, 'DD-MM-YYYY HH:mm:ss Z')
                                 let currentDate = new Date();
-                                if((currentDate - visitDate) > 10 * 60 * 1000) { 
+                                if((currentDate - visitDate) > 10 * 60 * 1000) {
                                     this.setState({ modalVisible: false});
                                     Toast.show({
                                     text: 'Вы опоздали на прием более чем на 10 минут, онлайн консультация недоступна',
@@ -315,13 +438,126 @@ class PriemFormList extends React.Component {
                         }
                         <TouchableOpacity
                             style={{ ...styles.openButton, backgroundColor: "#01A19F", marginTop: 20, }}
+                            onPress={() =>
+                                {
+                                    this.setState({ modalReportVisible: true, modalVisible: false})
+                                }
+                            }
+                        >
+                            <Text style={styles.textStyle}>Добавить отзыв</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ ...styles.openButton, backgroundColor: "#01A19F", marginTop: 20, }}
                             onPress={() => {this.setState({ modalVisible: false})}}
                         >
                             <Text style={styles.textStyle}>Назад</Text>
                         </TouchableOpacity>
                     </View>
                     </SafeAreaView>
-
+                </Modal>
+                <Modal
+                    animationType={"slide"}
+                    visible={this.state.modalReportVisible}
+                >
+                    <Root>
+                        <View style={{
+                            flex: 1,
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                        }}>
+                            <ScrollView style={{ paddingTop: 40 }}>
+                                <List>
+                                    {this.state.listGrade.map((grade, i) => (
+                                        <ListItem key={i} style={{ flexDirection: 'column', alignItems: "flex-start" }}>
+                                            <View>
+                                                <Text>{grade.note}</Text>
+                                            </View>
+                                            <View>
+                                                {grade.reason != null?
+                                                    <Text style={{
+                                                        color: 'red',
+                                                        textAlign: "left"
+                                                    }}>Отклонен модератором. Причина:{"\n"}{grade.reason}</Text>
+                                                    : null }
+                                            </View>
+                                            <View style={{ width: '100%' }}>
+                                                <Text style={{ width: '100%', textAlign: "right", fontSize: 10 }}>{grade.grade_date}</Text>
+                                            </View>
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            </ScrollView>
+                            <View style={{ borderTopWidth: 1,}}>
+                                <List>
+                                    <ListItem noBorder>
+                                        <TextInput
+                                            style={styles.textArea}
+                                            underlineColorAndroid="transparent"
+                                            placeholder="Введите отзыв"
+                                            placeholderTextColor="grey"
+                                            numberOfLines={2}
+                                            multiline={true}
+                                            onChangeText={text => this.setState({ otziv: text})}
+                                        />
+                                    </ListItem>
+                                    <ListItem noBorder style={{ marginTop: -20 }}>
+                                        <TextInput
+                                            style={styles.contactInput}
+                                            underlineColorAndroid="transparent"
+                                            placeholder="Как с вами связаться? (Телефон или электронную почту)"
+                                            placeholderTextColor="grey"
+                                            onChangeText={text => this.setState({callPhone: text})}
+                                        />
+                                    </ListItem>
+                                    <ListItem noBorder style={{ marginTop: -20, flexDirection: 'column', }}>
+                                        <Text>Оцените врача по пятибалльной шкале</Text>
+                                        <StarRating
+                                            maxStars={5}
+                                            emptyStar={'ios-star-outline'}
+                                            fullStar={'ios-star'}
+                                            halfStar={'ios-star-half'}
+                                            iconSet={'Ionicons'}
+                                            rating={this.state.ratingSet}
+                                            starSize={30}
+                                            selectedStar={(rating) => this.setState({ratingSet: rating})}
+                                            fullStarColor={'red'}
+                                            emptyStarColor={'red'}
+                                            interitemSpacing={20}
+                                        />
+                                    </ListItem>
+                                </List>
+                                <List>
+                                    <ListItem>
+                                        <Left>
+                                            <Button
+                                                success={true}
+                                                style={{
+                                                        width: '90%',
+                                                        borderRadius: 10,
+                                                        backgroundColor: '#5cb85c',}}
+                                                onPress={() => {
+                                                    this.setState({modalReportVisible: false});
+                                                }}
+                                            >
+                                                <Text style={{ width: '100%', textAlign: "center", color: 'white'}}>Закрыть</Text>
+                                            </Button>
+                                        </Left>
+                                        <Body>
+                                            <Button
+                                                style={{
+                                                    width: '90%',
+                                                    borderRadius: 10,
+                                                    backgroundColor: '#007aff',}}
+                                                onPress={() => { this._setRetviewForVisit() }}
+                                            >
+                                                <Text style={{ width: '100%', textAlign: "center", color: 'white'}}>Отправить</Text>
+                                            </Button>
+                                        </Body>
+                                    </ListItem>
+                                </List>
+                            </View>
+                        </View>
+                    </Root>
                 </Modal>
             </Content>
         );
@@ -365,6 +601,19 @@ const styles = StyleSheet.create({
     },
     modalView: {
         margin: 10,
+    },
+    contactInput: {
+        borderWidth: 1,
+        width: '100%',
+        padding: 5,
+    },
+    textArea: {
+        height: 65,
+        width: '100%',
+        padding: 5,
+        textAlignVertical: "top",
+        justifyContent: "flex-start",
+        borderWidth: 1
     },
 });
 
