@@ -1,7 +1,16 @@
 import React from "react";
-import {Dimensions, Modal, RefreshControl, StyleSheet, TextInput, TouchableOpacity, View, Alert} from "react-native";
 import {
-    Root,
+    Dimensions,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View,
+    Alert,
+    ScrollView
+} from "react-native";
+import {
     Body,
     Container,
     Content,
@@ -16,11 +25,11 @@ import {
     Input,
     Icon,
     Button,
+    Root,
 } from "native-base";
 import { API, getToken } from '../constants';
-import {AntDesign, Ionicons} from "@expo/vector-icons";
+import {Ionicons} from "@expo/vector-icons";
 import StarRating from "react-native-star-rating";
-import axios from "axios";
 
 let ScreenHeight = Dimensions.get("window").height;
 let ScreenWidth = Dimensions.get("window").width;
@@ -52,10 +61,6 @@ class DoctorList extends React.Component{
         const API_URL = `${API}backend/${url}`
 
         try {
-            console.log(API_URL);
-            console.log('API_URL');
-            console.log(this.state.token);
-            console.log('token');
             const response = await fetch(API_URL, {
                 method: 'GET',
                 headers: {
@@ -95,6 +100,18 @@ class DoctorList extends React.Component{
         })
     }
 
+    _alert = async (msgToast, onSuccess = false) => {
+        let tType = "success";
+        if(onSuccess == false){
+            tType = "danger";
+        }
+        Toast.show({
+            text: msgToast,
+            type: tType,
+            duration: 3000
+        });
+    }
+
     _getToken = async () => {
         await getToken().then(itoken => {
             this.setState({token: itoken});
@@ -102,13 +119,6 @@ class DoctorList extends React.Component{
     }
 
     _refreshPage = async () => {
-        this.setState({refreshing: true});
-        await this._getToken();
-        await this._getDoctorList();
-        this.setState({refreshing: false});
-    }
-
-    _refreshPageWithSearch = async (text) => {
         this.setState({refreshing: true});
         await this._getToken();
         await this._getDoctorList();
@@ -135,49 +145,42 @@ class DoctorList extends React.Component{
 
     searchRequest = async (searchText) =>
     {
-        console.log('test');
-        console.log(searchText);
+        console.log(searchText.text);
         let data = this.state.filteredList;
         data = data.filter(function(item){
-            return item.fio.includes(searchText.text);
+            return item.fio.includes(searchText.text.toUpperCase());
         }).map(function({avg_grade, category_name, doc_id, fio, fname, lname, rnum, science_degree, sname, spr_value}){
             return {avg_grade, category_name, doc_id, fio, fname, lname, rnum, science_degree, sname, spr_value};
         });
         this.setState({ list: data});
     }
 
-    getRenderArray()
-    {
-        console.log('getRenderArray');
-        let dataForRender = this.state.listfilteredList;
-        console.log('filteredList');
-        console.log(this.state.filteredList);
-        console.log('list');
-        console.log(this.state.list);
-        if(this.state.filteredList == undefined)
-        {
-            console.log('undefined');
-            dataForRender = this.state.list;
-        }
-        dataForRender = this.state.listfilteredList;
-        this.setState({ filteredList: dataForRender});
-    }
-
     _setRetview = async () => {
         let API_URL = `${API}backend/set_grade`
+        let showToast = false;
+        let msgToast = '';
+        /*
+        if(this.state.otziv == ''){
+            showToast = true;
+            msgToast = 'Пустой текст сообщения';
+        }
+        if(this.state.callPhone == ''){
+            showToast = true;
+            msgToast = 'Пустой текст обратной связи';
+        }
+         */
+        if(this.state.ratingSet == 0){
+            showToast = true;
+            msgToast = 'Поставьте пожалуйста оценку';
+        }
 
-        if(this.state.ratingSet == 0)
+        if(showToast)
         {
-            Toast.show({
-                text: 'Дайте оценку врачу',
-                type: 'danger',
-                duration: 3000,
-            });
-            return
+            this._alert(msgToast, false);
+            return;
         }
         try {
-            console.log(API_URL);
-            console.log('API_URL');
+            console.log(`id_doctor=${this.state.activeDoc}&grade=${this.state.ratingSet}&note=${this.state.otziv}&feedback=${this.state.callPhone}`);
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
@@ -189,219 +192,211 @@ class DoctorList extends React.Component{
             });
 
             const responseJson = await response.json();
+            console.log(responseJson);
             if (responseJson !== null) {
                 let itype = 'success';
 
                 if(responseJson.success == false){
                     itype = 'danger';
                 }
-                Toast.show({
-                    text: responseJson.message,
-                    type: itype,
-                    duration: 3000
-                });
                 this.setState({activeDoc: null, modal: false, otziv: '', callPhone: '', ratingSet: 0 });
                 this._getDoctorList();
+                this._alert(responseJson.message, responseJson.success);
             }
         } catch (error) {
-            console.log('Error when call API: ' + error.message);
+            console.log(error.message);
+            this._alert("Ошибка отправки данных. Повторите еще раз");
         }
     }
 
     render() {
-        // let dataForRender = this.getRenderArray();
-        // console.log('dataForRender')
-        // console.log(dataForRender)
         return (
             <Container>
-                <Header style={styles.headerTop}>
-                    <Left style={{ flex: 1}}>
-                        <Ionicons name="ios-menu"
-                                  style={{ color: '#046475', marginLeft: 10 }}
-                                  onPress={() => this.props.navigation.openDrawer()}
-                                  size={24}
-                        />
-                    </Left>
-                    <Body style={{ flex: 3 }}>
-                        <Title style={{ color: '#046475' }}>Наши врачи</Title>
-                    </Body>
-                </Header>
+                <Root>
+                    <Header style={styles.headerTop}>
+                        <Left style={{ flex: 1}}>
+                            <Ionicons name="ios-menu"
+                                      style={{ color: '#046475', marginLeft: 10 }}
+                                      onPress={() => this.props.navigation.openDrawer()}
+                                      size={24}
+                            />
+                        </Left>
+                        <Body style={{ flex: 3 }}>
+                            <Title style={{ color: '#046475' }}>Наши врачи</Title>
+                        </Body>
+                    </Header>
 
-                <Content
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={this.state.refreshing}
-                            onRefresh={this._refreshPage}
-                        />
-                    }
-                >
-                    <View>
-                        <TextInput
+                    <Content
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={this.state.refreshing}
+                                onRefresh={this._refreshPage}
+                            />
+                        }
+                    >
+                        <View>
+                            <TextInput
+                            style={styles.textInput}
                             placeholder="Поиск"
                             onChangeText={text => this.searchRequest({text})}
-                            keyboardType="numeric"
                         />
                     </View>
-                    {this.state.refreshing ? (
-                        <Text style={{ textAlign: "center", fontSize: 14, flex: 1, marginTop: 20, width: '100%' }}>Подождите идет загрузка данных</Text>
-                    ) : (
-                    <List>
-                        {this.state.list.map((doc, i) => (
-                            <ListItem key={i} style={{ paddingBottom: 5, paddingTop: 15 }}>
-                                <Body>
-                                    <Text style={styles.textName}>{doc.fio}</Text>
-                                    <View style={styles.starContainer}>
-                                        <Text style={styles.textSpecialty}>{doc.spr_value}</Text>
-                                    </View>
-                                    <View style={styles.buttonsContainer}>
-                                        <TouchableOpacity
-                                            activeOpacity={0.7}
-                                            style={[styles.button, styles.btn]}
-                                            onPress={() => this._onReviewButtonClicked(i)}
-                                        >
-                                            <Text style={{ color: '#fff' }}>О враче</Text>
-                                        </TouchableOpacity>
+                        {this.state.refreshing ? (
+                            <Text style={{ textAlign: "center", fontSize: 14, flex: 1, marginTop: 20, width: '100%' }}>Подождите идет загрузка данных</Text>
+                        ) : (
+                            <List>
+                                {this.state.list.map((doc, i) => (
+                                    <ListItem key={i} style={{ paddingBottom: 5, paddingTop: 15 }}>
+                                        <Body>
+                                            <Text style={styles.textName}>{doc.fio}</Text>
+                                            <View style={styles.starContainer}>
+                                                <Text style={styles.textSpecialty}>{doc.spr_value}</Text>
+                                            </View>
+                                            <View style={styles.buttonsContainer}>
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={[styles.button, styles.btn]}
+                                                    onPress={() => this._onReviewButtonClicked(i)}
+                                                >
+                                                    <Text style={{ color: '#fff' }}>О враче</Text>
+                                                </TouchableOpacity>
 
-                                        <TouchableOpacity
-                                            activeOpacity={0.7}
-                                            style={[styles.button, styles.btn]}
-                                            onPress={() => this.onInfoButtonClicked(doc.doc_id)}
-                                        >
-                                            <Text style={{ color: '#fff' }}>Отзывы</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                    {this.state.isDocReviewSelected == i &&
-                                    <View style={{ marginBottom: 10, marginTop: 10 }}>
-                                        <Text style={styles.textSpecialty}>Категория: { doc.category_name || "" }</Text>
-                                        <Text style={styles.textSpecialty}>Ученая степень: {doc.science_degree}</Text>
-                                    </View>
-                                    }
-                                </Body>
-                                <Right>
-                                    <View style={styles.starContainer}>
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={[styles.button, styles.btn]}
+                                                    onPress={() => this.onInfoButtonClicked(doc.doc_id)}
+                                                >
+                                                    <Text style={{ color: '#fff' }}>Отзывы</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                            {this.state.isDocReviewSelected == i &&
+                                            <View style={{ marginBottom: 10, marginTop: 10 }}>
+                                                <Text style={styles.textSpecialty}>Категория: { doc.category_name || "" }</Text>
+                                                <Text style={styles.textSpecialty}>Ученая степень: {doc.science_degree}</Text>
+                                            </View>
+                                            }
+                                        </Body>
+                                        <Right>
+                                            <View style={styles.starContainer}>
+                                                <StarRating
+                                                    disabled={true}
+                                                    maxStars={5}
+                                                    rating={parseInt(doc.avg_grade)}
+                                                    emptyStar={'ios-star-outline'}
+                                                    fullStar={'ios-star'}
+                                                    halfStar={'ios-star-half'}
+                                                    iconSet={'Ionicons'}
+                                                    starSize={15}
+                                                    fullStarColor={'red'}
+                                                    emptyStarColor={'red'}
+                                                />
+                                                <Text style={styles.ratingText}>{doc.avg_grade}</Text>
+                                            </View>
+                                        </Right>
+                                    </ListItem>
+                                ))}
+                            </List>
+                        )}
+                    </Content>
+                </Root>
+                <Modal
+                    animationType={"slide"}
+                    visible={this.state.modal}
+                >
+                    <Root>
+                        <View style={{
+                            flex: 1,
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                        }}>
+                            <ScrollView style={{ paddingTop: 40 }}>
+                                <List>
+                                    {this.state.listGrade.map((grade, i) => (
+                                        <ListItem key={i} style={{ flexDirection: 'column', alignItems: "flex-start" }}>
+                                            <View>
+                                                <Text>{grade.note}</Text>
+                                            </View>
+                                            <View>
+                                                {grade.reason != null?
+                                                    <Text style={{
+                                                        color: 'red',
+                                                        textAlign: "left"
+                                                    }}>Отклонен модератором. Причина:{"\n"}{grade.reason}</Text>
+                                                    : null }
+                                            </View>
+                                            <View style={{ width: '100%' }}>
+                                                <Text style={{ width: '100%', textAlign: "right", fontSize: 10 }}>{grade.grade_date}</Text>
+                                            </View>
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            </ScrollView>
+                            <View style={{ borderTopWidth: 1,}}>
+                                <List>
+                                    <ListItem noBorder>
+                                        <TextInput
+                                            style={styles.textArea}
+                                            underlineColorAndroid="transparent"
+                                            placeholder="Введите отзыв"
+                                            placeholderTextColor="grey"
+                                            numberOfLines={2}
+                                            multiline={true}
+                                            onChangeText={text => this.setState({ otziv: text})}
+                                        />
+                                    </ListItem>
+                                    <ListItem noBorder style={{ marginTop: -20 }}>
+                                        <TextInput
+                                            style={styles.contactInput}
+                                            underlineColorAndroid="transparent"
+                                            placeholder="Как с вами связаться? (Телефон или электронную почту)"
+                                            placeholderTextColor="grey"
+                                            onChangeText={text => this.setState({callPhone: text})}
+                                        />
+                                    </ListItem>
+                                    <ListItem noBorder style={{ marginTop: -20, flexDirection: 'column', }}>
+                                        <Text>Оцените врача по пятибалльной шкале</Text>
                                         <StarRating
-                                            disabled={true}
                                             maxStars={5}
-                                            rating={parseInt(doc.avg_grade)}
                                             emptyStar={'ios-star-outline'}
                                             fullStar={'ios-star'}
                                             halfStar={'ios-star-half'}
                                             iconSet={'Ionicons'}
-                                            starSize={15}
+                                            rating={this.state.ratingSet}
+                                            starSize={30}
+                                            selectedStar={(rating) => this.setState({ratingSet: rating})}
                                             fullStarColor={'red'}
                                             emptyStarColor={'red'}
+                                            interitemSpacing={20}
                                         />
-                                        <Text style={styles.ratingText}>{doc.avg_grade}</Text>
-                                    </View>
-                                </Right>
-                            </ListItem>
-                        ))}
-                    </List>
-                    )}
-
-                    <Modal
-                        animationType={"slide"}
-                        visible={this.state.modal}
-                    >
-                        {/*<Root>*/}
-                        {/*    <Container>*/}
-                        {/*        <Content>*/}
-                                    <View style={{
-                                        flex: 1,
-                                        flexDirection: 'column',
-                                        justifyContent: 'space-between',
-                                    }}>
-                                        <View style={{paddingTop: 40}}>
-                                            <List>
-                                                {this.state.listGrade.map((grade, i) => (
-                                                    <ListItem key={i} style={{ flexDirection: 'column', alignItems: "flex-start" }}>
-                                                        <View>
-                                                            <Text>{grade.note}</Text>
-                                                        </View>
-                                                        <View>
-                                                            {grade.reason != null?
-                                                                <Text style={{
-                                                                    color: 'red',
-                                                                    textAlign: "left"
-                                                                }}>Отклонен модератором. Причина:{"\n"}{grade.reason}</Text>
-                                                                : null }
-                                                        </View>
-                                                        <View style={{ width: '100%' }}>
-                                                            <Text style={{ width: '100%', textAlign: "right", fontSize: 10 }}>{grade.grade_date}</Text>
-                                                        </View>
-                                                    </ListItem>
-                                                ))}
-                                            </List>
-                                        </View>
-                                        <View style={{ borderTopWidth: 1,}}>
-                                            <List>
-                                                <ListItem noBorder>
-                                                    <TextInput
-                                                        style={styles.textArea}
-                                                        underlineColorAndroid="transparent"
-                                                        placeholder="Введите отзыв"
-                                                        placeholderTextColor="grey"
-                                                        numberOfLines={2}
-                                                        multiline={true}
-                                                        onChangeText={text => this.setState({ otziv: text})}
-                                                    />
-                                                </ListItem>
-                                                <ListItem noBorder style={{ marginTop: -20 }}>
-                                                    <TextInput
-                                                        style={styles.contactInput}
-                                                        underlineColorAndroid="transparent"
-                                                        placeholder="Как с вами связаться? (Телефон или электронную почту)"
-                                                        placeholderTextColor="grey"
-                                                        onChangeText={text => this.setState({callPhone: text})}
-                                                    />
-                                                </ListItem>
-                                                <ListItem noBorder style={{ marginTop: -20, flexDirection: 'column', }}>
-                                                    <Text>Оцените врача по пятибалльной шкале</Text>
-                                                    <StarRating
-                                                        maxStars={5}
-                                                        emptyStar={'ios-star-outline'}
-                                                        fullStar={'ios-star'}
-                                                        halfStar={'ios-star-half'}
-                                                        iconSet={'Ionicons'}
-                                                        rating={this.state.ratingSet}
-                                                        starSize={30}
-                                                        selectedStar={(rating) => this.setState({ratingSet: rating})}
-                                                        fullStarColor={'red'}
-                                                        emptyStarColor={'red'}
-                                                        interitemSpacing={20}
-                                                    />
-                                                </ListItem>
-                                            </List>
-                                            <List>
-                                                <ListItem>
-                                                    <Left>
-                                                        <Button
-                                                            success={true}
-                                                            style={{ width: '90%', borderRadius: 10 }}
-                                                            onPress={() => {
-                                                                this.setState({modal: false});
-                                                            }}
-                                                        >
-                                                            <Text style={{ width: '100%', textAlign: "center"}}>Закрыть</Text>
-                                                        </Button>
-                                                    </Left>
-                                                    <Body>
-                                                        <Button
-                                                            style={{ width: '90%', borderRadius: 10 }}
-                                                            onPress={() => { this._setRetview() }}
-                                                        >
-                                                            <Text style={{ width: '100%', textAlign: "center"}}>Отправить</Text>
-                                                        </Button>
-                                                    </Body>
-                                                </ListItem>
-                                            </List>
-                                        </View>
-                                    </View>
-                        {/*        </Content>*/}
-                        {/*    </Container>*/}
-                        {/*</Root>*/}
-                    </Modal>
-                </Content>
+                                    </ListItem>
+                                </List>
+                                <List>
+                                    <ListItem>
+                                        <Left>
+                                            <Button
+                                                success={true}
+                                                style={{ width: '90%', borderRadius: 10 }}
+                                                onPress={() => {
+                                                    this.setState({modal: false});
+                                                }}
+                                            >
+                                                <Text style={{ width: '100%', textAlign: "center"}}>Закрыть</Text>
+                                            </Button>
+                                        </Left>
+                                        <Body>
+                                            <Button
+                                                style={{ width: '90%', borderRadius: 10 }}
+                                                onPress={() => { this._setRetview() }}
+                                            >
+                                                <Text style={{ width: '100%', textAlign: "center"}}>Отправить</Text>
+                                            </Button>
+                                        </Body>
+                                    </ListItem>
+                                </List>
+                            </View>
+                        </View>
+                    </Root>
+                </Modal>
             </Container>
         )
     }
@@ -518,6 +513,17 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         padding: 5,
         marginBottom: 20
+    },
+    textInput:
+    {
+        fontSize: 14,
+        backgroundColor: '#fff',
+        color: '#046475',
+        padding: 5,
+        height: 40,
+        borderColor: '#01A19F',
+        borderWidth: 1,
+        textTransform: 'uppercase',
     }
 })
 
